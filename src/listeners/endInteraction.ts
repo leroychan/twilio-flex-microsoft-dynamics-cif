@@ -30,6 +30,17 @@ function iso(d: Date | string | undefined): string | undefined {
   try { return typeof d === 'string' ? d : d.toISOString(); } catch { return undefined; }
 }
 
+/** Transcript reads are best-effort; never let a stalled Sync/Conversations call hang. */
+const TRANSCRIPT_TIMEOUT_MS = 8000;
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    let settled = false;
+    const t = setTimeout(() => { if (!settled) { settled = true; resolve(fallback); } }, ms);
+    const finish = (v: T) => { if (!settled) { settled = true; clearTimeout(t); resolve(v); } };
+    p.then(finish, () => finish(fallback));
+  });
+}
+
 export async function handleCompleteTask(
   payload: { task: EndInteractionTask },
   deps: EndInteractionDeps,
@@ -47,10 +58,10 @@ export async function handleCompleteTask(
     let sid: string | undefined;
     if (channelCfg.transcriptSource === 'sync-rtt') {
       sid = a.call_sid;
-      transcript = await deps.fetchVoiceTranscript(sid);
+      transcript = await withTimeout(deps.fetchVoiceTranscript(sid), TRANSCRIPT_TIMEOUT_MS, '');
     } else if (channelCfg.transcriptSource === 'conversation') {
       sid = resolveConversationSid(a);
-      transcript = await deps.fetchChatTranscript(a);
+      transcript = await withTimeout(deps.fetchChatTranscript(a), TRANSCRIPT_TIMEOUT_MS, '');
     } else {
       sid = a.call_sid ?? resolveConversationSid(a);
     }

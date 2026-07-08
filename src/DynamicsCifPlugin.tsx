@@ -59,12 +59,19 @@ export default class DynamicsCifPlugin extends FlexPlugin {
     const agentName =
       (manager.workerClient?.attributes as any)?.full_name ?? manager.user?.identity;
 
-    flex.Actions.addListener('afterAcceptTask', (payload) =>
-      handleAcceptTask(payload as any, { client, cfg, store: setContactForTask }),
-    );
+    // Fire-and-forget: these listeners do best-effort side effects (screen pop, timeline
+    // note). They must NEVER return their promise to the action framework — a slow CIF
+    // call (createRecord's timeout is 100s) or a stalled Sync read would otherwise hold up
+    // AcceptTask/CompleteTask and make it look like the agent "can't end the call".
+    flex.Actions.addListener('afterAcceptTask', (payload) => {
+      void handleAcceptTask(payload as any, { client, cfg, store: setContactForTask }).catch(
+        // eslint-disable-next-line no-console
+        (e) => console.error('[DynamicsCif] screen-pop failed', e),
+      );
+    });
 
-    flex.Actions.addListener('afterCompleteTask', (payload) =>
-      handleCompleteTask(payload as any, {
+    flex.Actions.addListener('afterCompleteTask', (payload) => {
+      void handleCompleteTask(payload as any, {
         client,
         cfg,
         getContact: getContactForTask,
@@ -72,8 +79,11 @@ export default class DynamicsCifPlugin extends FlexPlugin {
         fetchVoiceTranscript,
         fetchChatTranscript,
         agentName,
-      }),
-    );
+      }).catch(
+        // eslint-disable-next-line no-console
+        (e) => console.error('[DynamicsCif] end-interaction failed', e),
+      );
+    });
 
     wireClickToDial({
       client,
