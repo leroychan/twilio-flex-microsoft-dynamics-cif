@@ -1,9 +1,11 @@
-const contactByTask = new Map<string, string>();
+export interface StoredContact { id: string; name?: string }
 
-export function setContactForTask(taskSid: string, contactId: string): void {
-  contactByTask.set(taskSid, contactId);
+const contactByTask = new Map<string, StoredContact>();
+
+export function setContactForTask(taskSid: string, contact: StoredContact): void {
+  contactByTask.set(taskSid, contact);
 }
-export function getContactForTask(taskSid: string): string | undefined {
+export function getContactForTask(taskSid: string): StoredContact | undefined {
   return contactByTask.get(taskSid);
 }
 export function clearTask(taskSid: string): void {

@@ -11,7 +11,7 @@ function fakeCif(overrides: Partial<CifApi> = {}): CifApi {
     ...overrides,
   };
 }
-const cfg = getConfig({ dispositionMap: { resolved: 100000001 } });
+const cfg = getConfig();
 
 describe('CifClient.isAvailable', () => {
   it('is false when the CIF global is absent', () => {
@@ -27,7 +27,7 @@ describe('CifClient.screenPop', () => {
         .mockResolvedValueOnce('[]'), // open
     });
     const res = await new CifClient(cfg, () => cif).screenPop('+1555');
-    expect(res).toEqual({ action: 'opened', contactId: 'c1' });
+    expect(res).toEqual({ action: 'opened', contactId: 'c1', contactName: 'Jane' });
     expect((cif.searchAndOpenRecords as jest.Mock).mock.calls[0][2]).toBe(true);
     expect((cif.searchAndOpenRecords as jest.Mock).mock.calls[1][2]).toBe(false);
   });
@@ -60,19 +60,37 @@ describe('CifClient.screenPop', () => {
   });
 });
 
-describe('CifClient.logCall', () => {
-  it('creates a phonecall and returns the new id', async () => {
+describe('CifClient.createNote', () => {
+  it('creates an annotation and returns the new id', async () => {
     const cif = fakeCif();
-    const id = await new CifClient(cfg, () => cif).logCall({ direction: 'inbound', contactId: 'c1' });
+    const id = await new CifClient(cfg, () => cif).createNote({
+      subject: 'Inbound voice',
+      'objectid_contact@odata.bind': '/contacts(c1)',
+    });
     expect(id).toBe('pc1');
     const [entity, data] = (cif.createRecord as jest.Mock).mock.calls[0];
-    expect(entity).toBe('phonecall');
-    expect(JSON.parse(data)['regardingobjectid_contact@odata.bind']).toBe('/contacts(c1)');
+    expect(entity).toBe('annotation');
+    expect(JSON.parse(data)['objectid_contact@odata.bind']).toBe('/contacts(c1)');
   });
   it('returns undefined and does not throw on createRecord failure', async () => {
     const cif = fakeCif({ createRecord: jest.fn().mockRejectedValue(new Error('boom')) });
-    const id = await new CifClient(cfg, () => cif).logCall({ direction: 'inbound' });
+    const id = await new CifClient(cfg, () => cif).createNote({ subject: 'x' });
     expect(id).toBeUndefined();
+  });
+});
+
+describe('CifClient.openCaseForm', () => {
+  it('opens an unsaved incident quick-create prefilled with the contact', async () => {
+    const cif = fakeCif();
+    await new CifClient(cfg, () => cif).openCaseForm('c1', 'Jane');
+    const [opts, params] = (cif.openForm as jest.Mock).mock.calls[0];
+    expect(JSON.parse(opts)).toEqual({ entityName: 'incident', useQuickCreateForm: true });
+    expect(JSON.parse(params)).toEqual({ customerid: 'c1', customeridname: 'Jane', customeridtype: 'contact' });
+  });
+  it('does nothing without a contactId', async () => {
+    const cif = fakeCif();
+    await new CifClient(cfg, () => cif).openCaseForm('');
+    expect(cif.openForm).not.toHaveBeenCalled();
   });
 });
 

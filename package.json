@@ -1,6 +1,6 @@
 {
   "name": "plugin-dynamics-cif",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "private": true,
   "scripts": {
     "postinstall": "flex-plugin pre-script-check"
@@ -11,7 +11,8 @@
     "@twilio/flex-plugin": "7.1.2",
     "prop-types": "^15.7.2",
     "react": "17.0.2",
-    "react-dom": "17.0.2"
+    "react-dom": "17.0.2",
+    "twilio-sync": "2.0.1"
   },
   "devDependencies": {
     "@twilio/flex-plugin-scripts": "7.1.2",

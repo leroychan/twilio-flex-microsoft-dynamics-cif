@@ -1,7 +1,6 @@
 import { CifApi, getCif } from './cifGlobal';
 import { IntegrationConfig } from '../config/integrationConfig';
 import { buildContactQuery, parseContactResults } from '../mappers/contactSearch';
-import { buildPhonecall, CallContext } from '../mappers/phonecall';
 
 export type ScreenPopAction = 'opened' | 'list' | 'search' | 'skipped';
 
@@ -15,7 +14,9 @@ export class CifClient {
     return !!this.getCifFn();
   }
 
-  async screenPop(phone: string): Promise<{ action: ScreenPopAction; contactId?: string }> {
+  async screenPop(
+    phone: string,
+  ): Promise<{ action: ScreenPopAction; contactId?: string; contactName?: string }> {
     const cif = this.getCifFn();
     if (!cif || !phone) return { action: 'skipped' };
     const query = buildContactQuery(phone, this.cfg.contactSearchFields);
@@ -34,7 +35,7 @@ export class CifClient {
     }
     if (matches.length === 1) {
       await cif.searchAndOpenRecords('contact', query, false).catch(() => undefined);
-      return { action: 'opened', contactId: matches[0].id };
+      return { action: 'opened', contactId: matches[0].id, contactName: matches[0].fullname };
     }
     if (matches.length === 0) {
       // No match: open the contact search page in the main Dynamics area (searchOnly=false),
@@ -46,19 +47,29 @@ export class CifClient {
     return { action: 'list' };
   }
 
-  async logCall(ctx: CallContext): Promise<string | undefined> {
+  /** Create a timeline note (annotation). Never throws — logging must not block wrap-up. */
+  async createNote(payload: Record<string, unknown>): Promise<string | undefined> {
     const cif = this.getCifFn();
     if (!cif) return undefined;
-    const payload = buildPhonecall(ctx, {
-      dispositionFieldName: this.cfg.dispositionFieldName,
-      dispositionMap: this.cfg.dispositionMap,
-    });
     try {
-      const raw = await cif.createRecord('phonecall', JSON.stringify(payload));
+      const raw = await cif.createRecord('annotation', JSON.stringify(payload));
       return JSON.parse(raw)?.id;
     } catch {
       return undefined;
     }
+  }
+
+  /** Open a pre-filled, UNSAVED Case (incident) quick-create form for the contact. */
+  async openCaseForm(contactId: string, contactName?: string): Promise<void> {
+    const cif = this.getCifFn();
+    if (!cif || !contactId) return;
+    const entityFormOptions = JSON.stringify({ entityName: 'incident', useQuickCreateForm: true });
+    const formParameters = JSON.stringify({
+      customerid: contactId,
+      customeridname: contactName ?? '',
+      customeridtype: 'contact',
+    });
+    await cif.openForm(entityFormOptions, formParameters).catch(() => undefined);
   }
 
   onClickToDial(handler: (phone: string) => void): void {

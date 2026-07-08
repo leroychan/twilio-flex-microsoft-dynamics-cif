@@ -18,28 +18,47 @@ adapter. Data flow: **Flex Action listener → CifClient (adapter) → CIF API �
 Dynamics → Dataverse.** The plugin never talks to Dataverse directly.
 
 - `src/config/integrationConfig.ts` — typed config + `getConfig(overrides)`
-  (deep-merges nested `attr`/`dispositionMap`). Search fields, disposition
-  option-set map, and task-attribute paths all come from here — **never hardcode.**
+  (deep-merges `attr`/`dispositionMap`, deep-copies `channels`). Search fields,
+  per-channel identifier attrs + transcript source, disposition label map, and
+  task-attribute paths all come from here — **never hardcode.**
 - `src/cif/cifGlobal.ts` — typed accessor `getCif()` for `window.Microsoft.CIFramework`.
 - `src/cif/loadCifLibrary.ts` — presence-poll loader (gates on CIF global presence,
   not the `CIFInitDone` event — deliberate deviation, documented in-file).
 - `src/cif/CifClient.ts` — the adapter: `isAvailable`, `screenPop`,
-  `quickCreateContact`, `logCall` (never throws), `onClickToDial`.
-- `src/mappers/contactSearch.ts`, `src/mappers/phonecall.ts` — pure payload builders.
-- `src/listeners/screenPop.ts` (`afterAcceptTask`), `src/listeners/logCall.ts`
-  (`afterCompleteTask`) — thin; both **guard voice-only** via `cfg.voiceChannelName`.
+  `createNote` (never throws), `openCaseForm` (unsaved incident quick-create),
+  `onClickToDial`.
+- `src/mappers/contactSearch.ts` (OData query; phone value is URL-encoded so `+`
+  survives), `src/mappers/note.ts` (annotation payload). Pure builders.
+- `src/sync/transcriptReader.ts` (pure) + `src/conversations/chatTranscript.ts`
+  (pure) — read a transcript; both take an injected client/deps so they stay
+  free of `@twilio/flex-ui` (its prod bundle can't load under jsdom).
+- `src/runtime/transcriptSources.ts` — the ONLY module importing `@twilio/flex-ui`
+  + `twilio-sync`; builds the real Sync/Conversations clients. Imported by the
+  plugin, never by tests.
+- `src/listeners/screenPop.ts` (`afterAcceptTask`) + `src/listeners/endInteraction.ts`
+  (`afterCompleteTask`) — thin; **handle only channels present in `cfg.channels`**
+  (Voice + WhatsApp).
 - `src/actions/clickToDial.ts` — CIF `onclicktoact` → Flex `StartOutboundCall`.
+- `src/components/CreateCaseButton.tsx` — Paste button mounted on `TaskCanvasHeader`;
+  opens a pre-filled unsaved Case form for the popped contact.
 - `src/state/callContext.ts` — in-memory `Map` keyed by task SID; correlates the
-  screen-popped contact id from accept → complete, then `clearTask()`.
+  screen-popped `{id,name}` from accept → complete, then `clearTask()`.
 - `src/DynamicsCifPlugin.tsx` — `init()` wires everything. `src/index.ts` loads it.
 
 ## Where interactions are stored
 
+At wrap-up the plugin writes a Dataverse **Note (annotation)** on the contact's
+timeline with call/conversation SID, metadata, disposition, wrap-up notes, and the
+**full transcript** (voice: read live from RTT Sync list `rtt-<call_sid>` in the
+default Sync service; WhatsApp: the conversation's message history). No `phonecall`
+activity is created. Transcript retrieval is client-side using Flex's own user token
+(mirrors the sibling `twilio-flex-plugin-real-time-transcription` repo) — no server.
+
 | What | Where | Lifetime |
 |------|-------|----------|
-| Call media / recording / TaskRouter task | Twilio Flex | Twilio retention |
-| Interaction summary (`phonecall` activity, linked to contact) | Dataverse | Permanent CRM record |
-| task-SID → contact-id link | plugin memory (`callContext` Map) | cleared after logging |
+| Call media / recording / RTT transcript utterances | Twilio (Voice + Sync list `rtt-<callSid>`) | Twilio retention |
+| Interaction Note (annotation, linked to contact, incl. transcript) | Dataverse | Permanent CRM record |
+| task-SID → `{contactId,name}` link | plugin memory (`callContext` Map) | cleared after wrap-up |
 
 ## Credentials / auth model
 

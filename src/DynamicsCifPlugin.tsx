@@ -1,3 +1,4 @@
+import * as React from 'react';
 import * as Flex from '@twilio/flex-ui';
 import { FlexPlugin } from '@twilio/flex-plugin';
 
@@ -6,9 +7,11 @@ import type { IntegrationConfig } from './config/integrationConfig';
 import { CifClient } from './cif/CifClient';
 import { loadCifLibrary } from './cif/loadCifLibrary';
 import { handleAcceptTask } from './listeners/screenPop';
-import { handleCompleteTask } from './listeners/logCall';
+import { handleCompleteTask } from './listeners/endInteraction';
 import { wireClickToDial } from './actions/clickToDial';
 import { setContactForTask, getContactForTask, clearTask } from './state/callContext';
+import { CreateCaseButton } from './components/CreateCaseButton';
+import { fetchVoiceTranscript, fetchChatTranscript } from './runtime/transcriptSources';
 
 const PLUGIN_NAME = 'DynamicsCifPlugin';
 
@@ -53,17 +56,35 @@ export default class DynamicsCifPlugin extends FlexPlugin {
       return;
     }
 
+    const agentName =
+      (manager.workerClient?.attributes as any)?.full_name ?? manager.user?.identity;
+
     flex.Actions.addListener('afterAcceptTask', (payload) =>
       handleAcceptTask(payload as any, { client, cfg, store: setContactForTask }),
     );
 
     flex.Actions.addListener('afterCompleteTask', (payload) =>
-      handleCompleteTask(payload as any, { client, cfg, getContact: getContactForTask, clear: clearTask }),
+      handleCompleteTask(payload as any, {
+        client,
+        cfg,
+        getContact: getContactForTask,
+        clear: clearTask,
+        fetchVoiceTranscript,
+        fetchChatTranscript,
+        agentName,
+      }),
     );
 
     wireClickToDial({
       client,
       invokeAction: (name, p) => { void flex.Actions.invokeAction(name, p as any); },
     });
+
+    // Agent-triggered ticket creation, mounted on the task header (the CRM container /
+    // panel 2 is hidden above). Flex injects the selected task as a prop.
+    flex.TaskCanvasHeader.Content.add(
+      <CreateCaseButton key="dynamics-create-case" client={client} />,
+      { sortOrder: 1, align: 'end' },
+    );
   }
 }
