@@ -27,9 +27,29 @@ const DEFAULTS: IntegrationConfig = {
   },
   channels: {
     voice: { identifierAttr: 'caller', transcriptSource: 'sync-rtt' },
-    whatsapp: { identifierAttr: 'from', transcriptSource: 'conversation' },
+    whatsapp: { identifierAttr: 'customerAddress', transcriptSource: 'conversation' },
   },
 };
+
+/**
+ * Resolve which configured channel a task belongs to. Flex reports the transport in two
+ * different places depending on the channel: voice tasks carry `taskChannelUniqueName`
+ * ('voice'), while WhatsApp/chat interaction tasks report `taskChannelUniqueName` as
+ * 'chat'/'default' and put the real transport on `attributes.channelType` ('whatsapp').
+ * We match `taskChannelUniqueName` first, then fall back to `attributes.channelType`.
+ * Returns the matching config key, or undefined when the channel isn't handled.
+ */
+export function resolveChannelKey(
+  cfg: IntegrationConfig,
+  taskChannelUniqueName: string | undefined,
+  attributes: Record<string, any> | undefined,
+): string | undefined {
+  const direct = taskChannelUniqueName ?? '';
+  if (cfg.channels[direct]) return direct;
+  const byType = String(attributes?.channelType ?? '');
+  if (cfg.channels[byType]) return byType;
+  return undefined;
+}
 
 export function getConfig(overrides: Partial<IntegrationConfig> = {}): IntegrationConfig {
   return {

@@ -1,4 +1,4 @@
-import { getConfig } from '../../src/config/integrationConfig';
+import { getConfig, resolveChannelKey } from '../../src/config/integrationConfig';
 
 describe('getConfig', () => {
   it('returns sane defaults', () => {
@@ -34,5 +34,23 @@ describe('getConfig', () => {
     a.channels.voice.identifierAttr = 'mutated';
     const b = getConfig();
     expect(b.channels.voice.identifierAttr).toBe('caller');
+  });
+  it('resolves the whatsapp customer identifier from customerAddress', () => {
+    expect(getConfig().channels.whatsapp.identifierAttr).toBe('customerAddress');
+  });
+});
+
+describe('resolveChannelKey', () => {
+  const cfg = getConfig();
+  it('matches directly on taskChannelUniqueName', () => {
+    expect(resolveChannelKey(cfg, 'voice', {})).toBe('voice');
+  });
+  it('falls back to attributes.channelType when the task channel name is not a configured key', () => {
+    expect(resolveChannelKey(cfg, 'chat', { channelType: 'whatsapp' })).toBe('whatsapp');
+    expect(resolveChannelKey(cfg, 'default', { channelType: 'whatsapp' })).toBe('whatsapp');
+  });
+  it('returns undefined for an unhandled channel', () => {
+    expect(resolveChannelKey(cfg, 'sms', { channelType: 'sms' })).toBeUndefined();
+    expect(resolveChannelKey(cfg, undefined, undefined)).toBeUndefined();
   });
 });

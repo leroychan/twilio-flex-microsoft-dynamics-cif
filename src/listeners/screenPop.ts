@@ -1,5 +1,5 @@
 import { CifClient } from '../cif/CifClient';
-import { IntegrationConfig } from '../config/integrationConfig';
+import { IntegrationConfig, resolveChannelKey } from '../config/integrationConfig';
 import { StoredContact } from '../state/callContext';
 
 /** Strip a channel address prefix (e.g. `whatsapp:+1424` → `+1424`). */
@@ -14,11 +14,13 @@ export async function handleAcceptTask(
   payload: { task: { sid: string; attributes: Record<string, any>; taskChannelUniqueName?: string } },
   deps: { client: Pick<CifClient, 'screenPop'>; cfg: IntegrationConfig; store: (sid: string, c: StoredContact) => void },
 ): Promise<void> {
-  const channel = payload.task.taskChannelUniqueName ?? '';
-  const channelCfg = deps.cfg.channels[channel];
+  const channel = resolveChannelKey(deps.cfg, payload.task.taskChannelUniqueName, payload.task.attributes);
+  const channelCfg = channel ? deps.cfg.channels[channel] : undefined;
   /* eslint-disable no-console */
   console.info('[DynamicsCif] afterAcceptTask', {
-    channel,
+    taskChannelUniqueName: payload.task.taskChannelUniqueName,
+    channelType: payload.task.attributes?.channelType,
+    resolvedChannel: channel,
     handled: !!channelCfg,
     identifierAttr: channelCfg?.identifierAttr,
     attributes: payload.task.attributes,

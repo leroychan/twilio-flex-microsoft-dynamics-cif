@@ -1,5 +1,5 @@
 import { CifClient } from '../cif/CifClient';
-import { IntegrationConfig } from '../config/integrationConfig';
+import { IntegrationConfig, resolveChannelKey } from '../config/integrationConfig';
 import { StoredContact } from '../state/callContext';
 import { buildNote, InteractionContext } from '../mappers/note';
 import { resolveConversationSid } from '../conversations/chatTranscript';
@@ -35,9 +35,9 @@ export async function handleCompleteTask(
   deps: EndInteractionDeps,
 ): Promise<void> {
   const { task } = payload;
-  const channel = task.taskChannelUniqueName ?? '';
-  const channelCfg = deps.cfg.channels[channel];
-  if (!channelCfg) return; // channel not handled — do not log or clear
+  const channel = resolveChannelKey(deps.cfg, task.taskChannelUniqueName, task.attributes);
+  const channelCfg = channel ? deps.cfg.channels[channel] : undefined;
+  if (!channel || !channelCfg) return; // channel not handled — do not log or clear
 
   try {
     const a = task.attributes ?? {};

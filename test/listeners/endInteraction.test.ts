@@ -31,10 +31,10 @@ describe('handleCompleteTask', () => {
     expect(deps.clear).toHaveBeenCalledWith('WT1');
   });
 
-  it('whatsapp: reads the chat transcript from the conversation', async () => {
+  it('whatsapp: resolves via channelType and reads the chat transcript from the conversation', async () => {
     const deps = baseDeps();
     await handleCompleteTask(
-      { task: { sid: 'WT2', taskChannelUniqueName: 'whatsapp', attributes: { conversationSid: 'CH1', from: 'whatsapp:+1424' } } },
+      { task: { sid: 'WT2', taskChannelUniqueName: 'chat', attributes: { channelType: 'whatsapp', conversationSid: 'CH1', customerAddress: 'whatsapp:+6590100209' } } },
       deps,
     );
     expect(deps.fetchChatTranscript).toHaveBeenCalled();
