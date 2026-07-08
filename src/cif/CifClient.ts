@@ -21,8 +21,15 @@ export class CifClient {
     const query = buildContactQuery(phone, this.cfg.contactSearchFields);
     let matches;
     try {
-      matches = parseContactResults(await cif.searchAndOpenRecords('contact', query, true));
-    } catch {
+      const raw = await cif.searchAndOpenRecords('contact', query, true);
+      // eslint-disable-next-line no-console
+      console.info('[DynamicsCif] search query:', query, '\n[DynamicsCif] raw result:', raw);
+      matches = parseContactResults(raw);
+      // eslint-disable-next-line no-console
+      console.info('[DynamicsCif] parsed matches:', matches.length, matches);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[DynamicsCif] search failed:', e);
       return { action: 'skipped' };
     }
     if (matches.length === 1) {

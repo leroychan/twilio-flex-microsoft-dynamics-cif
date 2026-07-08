@@ -21,7 +21,17 @@ describe('parseContactResults', () => {
     const raw = JSON.stringify([{ contactid: 'abc', fullname: 'Jane' }]);
     expect(parseContactResults(raw)).toEqual([{ id: 'abc', fullname: 'Jane' }]);
   });
-  it('returns [] for empty or non-array payloads', () => {
+  it('parses the CIF numeric-keyed object shape { "0": {...}, "1": {...} }', () => {
+    const raw = JSON.stringify({
+      0: { contactid: 'c1', fullname: 'Jane' },
+      1: { contactid: 'c2', fullname: 'John' },
+    });
+    expect(parseContactResults(raw)).toEqual([
+      { id: 'c1', fullname: 'Jane' },
+      { id: 'c2', fullname: 'John' },
+    ]);
+  });
+  it('returns [] for empty payloads or objects with no record rows', () => {
     expect(parseContactResults('[]')).toEqual([]);
     expect(parseContactResults('{}')).toEqual([]);
     expect(parseContactResults('')).toEqual([]);
