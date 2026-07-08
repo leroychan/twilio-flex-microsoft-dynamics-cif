@@ -1,11 +1,15 @@
 export interface ContactMatch { id: string; fullname?: string }
 
-function esc(v: string): string {
-  return v.replace(/'/g, "''");
+function encodeValue(v: string): string {
+  // OData string-literal escaping (double single-quotes), then URL-encode so characters
+  // like '+' survive transport. An un-encoded '+' is decoded to a space by the Web API,
+  // which would make every E.164 number (all start with '+') fail to match.
+  return encodeURIComponent(v.replace(/'/g, "''"));
 }
 
 export function buildContactQuery(phone: string, fields: string[]): string {
-  const filter = fields.map((f) => `${f} eq '${esc(phone)}'`).join(' or ');
+  const value = encodeValue(phone);
+  const filter = fields.map((f) => `${f} eq '${value}'`).join(' or ');
   return `?$select=contactid,fullname&$filter=${filter}`;
 }
 

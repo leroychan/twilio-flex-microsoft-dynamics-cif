@@ -33,6 +33,19 @@ export default class DynamicsCifPlugin extends FlexPlugin {
     const ready = await loadCifLibrary();
     const client = new CifClient(cfg);
 
+    // Diagnostic: enumerate the CIF framework API surface so we can confirm what's available.
+    try {
+      const g = (window as any).Microsoft?.CIFramework;
+      // eslint-disable-next-line no-console
+      console.info(
+        '[DynamicsCif] CIFramework present:', !!g,
+        '\n[DynamicsCif] CIFramework members:', g ? Object.getOwnPropertyNames(g) : 'n/a',
+        '\n[DynamicsCif] effective config:', cfg,
+      );
+    } catch {
+      /* diagnostics only */
+    }
+
     if (!ready || !client.isAvailable()) {
       // Not running inside a CIF host (e.g. standalone Flex) — degrade gracefully.
       // eslint-disable-next-line no-console

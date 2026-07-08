@@ -6,13 +6,13 @@ describe('buildContactQuery', () => {
     expect(q.startsWith('?$select=')).toBe(true);
     expect(q).toContain('contactid');
     expect(q).toContain('fullname');
-    expect(q).toContain("telephone1 eq '+15551234567'");
+    expect(q).toContain("telephone1 eq '%2B15551234567'"); // '+' URL-encoded so it isn't decoded to a space
     expect(q).toContain(' or ');
-    expect(q).toContain("mobilephone eq '+15551234567'");
+    expect(q).toContain("mobilephone eq '%2B15551234567'");
   });
-  it("escapes single quotes in the phone value", () => {
+  it("escapes single quotes and URL-encodes the phone value", () => {
     const q = buildContactQuery("O'+1", ['telephone1']);
-    expect(q).toContain("telephone1 eq 'O''+1'");
+    expect(q).toContain("telephone1 eq 'O''%2B1'");
   });
 });
 
