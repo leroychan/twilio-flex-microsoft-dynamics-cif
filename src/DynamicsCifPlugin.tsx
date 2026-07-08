@@ -1,8 +1,5 @@
-import React from 'react';
 import * as Flex from '@twilio/flex-ui';
 import { FlexPlugin } from '@twilio/flex-plugin';
-
-import CustomTaskList from './components/CustomTaskList/CustomTaskList';
 
 const PLUGIN_NAME = 'DynamicsCifPlugin';
 
@@ -12,13 +9,13 @@ export default class DynamicsCifPlugin extends FlexPlugin {
   }
 
   /**
-   * This code is run when your plugin is being started
-   * Use this to modify any UI components or attach to the actions framework
+   * This code is run when your plugin is being started.
+   * Task 11 will wire up the full Dynamics CIF integration here.
    *
    * @param flex { typeof Flex }
    */
-  async init(flex: typeof Flex, manager: Flex.Manager): Promise<void> {
-    const options: Flex.ContentFragmentProps = { sortOrder: -1 };
-    flex.AgentDesktopView.Panel1.Content.add(<CustomTaskList key="DynamicsCifPlugin-component" />, options);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async init(_flex: typeof Flex, _manager: Flex.Manager): Promise<void> {
+    // intentionally empty — Task 11 implements this
   }
 }

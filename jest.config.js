@@ -1,8 +1,12 @@
-module.exports = (config, { isProd, isDev, isTest }) => {
-  /**
-   * Customize the Jest by modifying the config object.
-   * Consult https://jestjs.io/docs/en/configuration for more information.
-   */
+const preset = require('@twilio/flex-plugin-test').default();
 
-  return config;
-}
+module.exports = {
+  ...preset,
+  testEnvironment: 'jsdom',
+  roots: ['<rootDir>/src', '<rootDir>/test'],
+  testMatch: [
+    '<rootDir>/src/**/__tests__/**/*.{js,jsx,ts,tsx}',
+    '<rootDir>/src/**/*.{spec,test}.{js,jsx,ts,tsx}',
+    '<rootDir>/test/**/*.{spec,test}.{js,jsx,ts,tsx}',
+  ],
+};
