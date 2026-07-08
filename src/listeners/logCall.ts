@@ -20,6 +20,9 @@ export async function handleCompleteTask(
     notes: a[deps.cfg.attr.notes],
     contactId: deps.getContact(payload.task.sid),
   };
-  await deps.client.logCall(ctx);
-  deps.clear(payload.task.sid);
+  try {
+    await deps.client.logCall(ctx);
+  } finally {
+    deps.clear(payload.task.sid);
+  }
 }

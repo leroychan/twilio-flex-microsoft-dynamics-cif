@@ -23,4 +23,17 @@ describe('handleCompleteTask', () => {
     await handleCompleteTask({ task: { sid: 'WT2', attributes: {} } }, { client, cfg, getContact: () => undefined, clear: jest.fn() });
     expect((client.logCall as jest.Mock).mock.calls[0][0].direction).toBe('inbound');
   });
+  it('clears the task even when logCall rejects', async () => {
+    const client = { logCall: jest.fn().mockRejectedValue(new Error('boom')) };
+    const clear = jest.fn();
+    try {
+      await handleCompleteTask(
+        { task: { sid: 'WT3', attributes: {} } },
+        { client, cfg, getContact: () => undefined, clear },
+      );
+    } catch {
+      // Ignore the error — we're testing that clear() is called despite rejection
+    }
+    expect(clear).toHaveBeenCalledWith('WT3');
+  });
 });
