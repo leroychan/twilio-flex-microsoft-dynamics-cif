@@ -3,7 +3,7 @@ import { IntegrationConfig } from '../config/integrationConfig';
 import { buildContactQuery, parseContactResults } from '../mappers/contactSearch';
 import { buildPhonecall, CallContext } from '../mappers/phonecall';
 
-export type ScreenPopAction = 'opened' | 'list' | 'quickCreate' | 'skipped';
+export type ScreenPopAction = 'opened' | 'list' | 'search' | 'skipped';
 
 export class CifClient {
   constructor(
@@ -30,20 +30,13 @@ export class CifClient {
       return { action: 'opened', contactId: matches[0].id };
     }
     if (matches.length === 0) {
-      await this.quickCreateContact(phone);
-      return { action: 'quickCreate' };
+      // No match: open the contact search page in the main Dynamics area (searchOnly=false),
+      // rather than a quick-create form flyout that would overlay the docked CIF/Flex panel.
+      await cif.searchAndOpenRecords('contact', query, false).catch(() => undefined);
+      return { action: 'search' };
     }
     await cif.searchAndOpenRecords('contact', query, false).catch(() => undefined);
     return { action: 'list' };
-  }
-
-  async quickCreateContact(phone: string): Promise<void> {
-    const cif = this.getCifFn();
-    if (!cif) return;
-    const field = this.cfg.contactSearchFields[0] ?? 'telephone1';
-    const entityFormOptions = JSON.stringify({ entityName: 'contact', useQuickCreateForm: true });
-    const formParameters = JSON.stringify({ [field]: phone });
-    await cif.openForm(entityFormOptions, formParameters).catch(() => undefined);
   }
 
   async logCall(ctx: CallContext): Promise<string | undefined> {

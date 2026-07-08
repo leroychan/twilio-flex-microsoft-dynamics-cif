@@ -12,7 +12,7 @@ describe('handleAcceptTask', () => {
     expect(store).toHaveBeenCalledWith('WT1', 'c1');
   });
   it('does not store when no contact was opened', async () => {
-    const client = { screenPop: jest.fn().mockResolvedValue({ action: 'quickCreate' }) };
+    const client = { screenPop: jest.fn().mockResolvedValue({ action: 'search' }) };
     const store = jest.fn();
     await handleAcceptTask({ task: { sid: 'WT2', attributes: { [cfg.attr.callerNumber]: '+1555' }, taskChannelUniqueName: 'voice' } }, { client, cfg, store });
     expect(store).not.toHaveBeenCalled();

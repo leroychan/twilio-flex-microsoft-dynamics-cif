@@ -31,11 +31,13 @@ describe('CifClient.screenPop', () => {
     expect((cif.searchAndOpenRecords as jest.Mock).mock.calls[0][2]).toBe(true);
     expect((cif.searchAndOpenRecords as jest.Mock).mock.calls[1][2]).toBe(false);
   });
-  it('quick-creates a contact on zero matches', async () => {
+  it('opens the contact search page on zero matches (no quick-create flyout)', async () => {
     const cif = fakeCif({ searchAndOpenRecords: jest.fn().mockResolvedValue('[]') });
     const res = await new CifClient(cfg, () => cif).screenPop('+1555');
-    expect(res.action).toBe('quickCreate');
-    expect(cif.openForm).toHaveBeenCalled();
+    expect(res.action).toBe('search');
+    // second call opens the search page with searchOnly=false; no openForm flyout
+    expect((cif.searchAndOpenRecords as jest.Mock).mock.calls[1][2]).toBe(false);
+    expect(cif.openForm).not.toHaveBeenCalled();
   });
   it('opens a list on multiple matches', async () => {
     const cif = fakeCif({
