@@ -38,6 +38,7 @@ export async function handleAcceptTask(
   const res = await deps.client.screenPop(phone);
   console.info('[DynamicsCif] screen-pop result:', res);
   if (res.action === 'opened' && res.contactId) {
+    console.info('[DynamicsCif] storing contact for task', { taskSid: payload.task.sid, contactId: res.contactId });
     deps.store(payload.task.sid, { id: res.contactId, name: res.contactName });
   }
   /* eslint-enable no-console */
