@@ -18,6 +18,12 @@ export default class DynamicsCifPlugin extends FlexPlugin {
   }
 
   async init(flex: typeof Flex, manager: Flex.Manager): Promise<void> {
+    // Embedded-in-Dynamics layout: the CIF panel is narrow, so drop the second agent-desktop
+    // panel and the project switcher to reclaim space. Applied unconditionally (layout-only,
+    // independent of CIF availability).
+    (flex.AgentDesktopView.defaultProps as any).showPanel2 = false;
+    flex.RootContainer.Content.remove('project-switcher');
+
     // Admins can set ui_attributes.dynamicsCif in the Flex Configuration service to tune the
     // integration without code changes, e.g.:
     //   { dispositionMap: { resolved: 100000001 }, attr: { disposition: 'wrapUpCode' } }
