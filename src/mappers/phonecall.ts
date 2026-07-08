@@ -23,7 +23,8 @@ export function buildPhonecall(
   if (ctx.notes) p.description = ctx.notes;
   if (typeof ctx.durationMinutes === 'number') p.actualdurationminutes = Math.round(ctx.durationMinutes);
   if (ctx.contactId) p['regardingobjectid_contact@odata.bind'] = `/contacts(${ctx.contactId})`;
-  if (ctx.dispositionCode && ctx.dispositionCode in cfg.dispositionMap) {
+  if (ctx.dispositionCode &&
+      Object.prototype.hasOwnProperty.call(cfg.dispositionMap, ctx.dispositionCode)) {
     p[cfg.dispositionFieldName] = cfg.dispositionMap[ctx.dispositionCode];
   }
   return p;

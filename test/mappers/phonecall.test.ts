@@ -37,4 +37,8 @@ describe('buildPhonecall', () => {
     expect(p.description).toBe('hi');
     expect(p.actualdurationminutes).toBe(4);
   });
+  it('omits disposition for an inherited prototype key like "constructor"', () => {
+    const p = buildPhonecall({ direction: 'inbound', dispositionCode: 'constructor' }, cfg);
+    expect('new_disposition' in p).toBe(false);
+  });
 });
