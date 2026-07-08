@@ -1,6 +1,14 @@
 import * as Flex from '@twilio/flex-ui';
 import { FlexPlugin } from '@twilio/flex-plugin';
 
+import { getConfig } from './config/integrationConfig';
+import { CifClient } from './cif/CifClient';
+import { loadCifLibrary } from './cif/loadCifLibrary';
+import { handleAcceptTask } from './listeners/screenPop';
+import { handleCompleteTask } from './listeners/logCall';
+import { wireClickToDial } from './actions/clickToDial';
+import { setContactForTask, getContactForTask, clearTask } from './state/callContext';
+
 const PLUGIN_NAME = 'DynamicsCifPlugin';
 
 export default class DynamicsCifPlugin extends FlexPlugin {
@@ -8,14 +16,29 @@ export default class DynamicsCifPlugin extends FlexPlugin {
     super(PLUGIN_NAME);
   }
 
-  /**
-   * This code is run when your plugin is being started.
-   * Task 11 will wire up the full Dynamics CIF integration here.
-   *
-   * @param flex { typeof Flex }
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async init(_flex: typeof Flex, _manager: Flex.Manager): Promise<void> {
-    // intentionally empty — Task 11 implements this
+  async init(flex: typeof Flex, _manager: Flex.Manager): Promise<void> {
+    const cfg = getConfig();
+    const ready = await loadCifLibrary();
+    const client = new CifClient(cfg);
+
+    if (!ready || !client.isAvailable()) {
+      // Not running inside a CIF host (e.g. standalone Flex) — degrade gracefully.
+      // eslint-disable-next-line no-console
+      console.warn(`${PLUGIN_NAME}: CIF not available; screen pop / call logging disabled.`);
+      return;
+    }
+
+    flex.Actions.addListener('afterAcceptTask', (payload) =>
+      handleAcceptTask(payload as any, { client, cfg, store: setContactForTask }),
+    );
+
+    flex.Actions.addListener('afterCompleteTask', (payload) =>
+      handleCompleteTask(payload as any, { client, cfg, getContact: getContactForTask, clear: clearTask }),
+    );
+
+    wireClickToDial({
+      client,
+      invokeAction: (name, p) => { void flex.Actions.invokeAction(name, p as any); },
+    });
   }
 }
