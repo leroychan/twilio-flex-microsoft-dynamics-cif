@@ -21,6 +21,10 @@ export async function loadCifLibrary(deps: {
   isReady?: () => boolean;
   timeoutMs?: number;
 } = {}): Promise<boolean> {
+  // NOTE: We gate on presence of window.Microsoft.CIFramework rather than the CIFInitDone
+  // event. In practice this is sufficient: the Flex Actions listeners that make CIF calls
+  // (afterAcceptTask/afterCompleteTask) only fire long after page load and CIF handshake,
+  // so the API is initialized by the time we call it. Revisit if a call ever races init.
   const getCrmUrl = deps.getCrmUrl ?? defaultGetCrmUrl;
   const injectScript = deps.injectScript ?? defaultInject;
   const isReady = deps.isReady ?? (() => !!(window as any)?.Microsoft?.CIFramework);

@@ -3,7 +3,7 @@ import { IntegrationConfig } from '../config/integrationConfig';
 import { CallContext } from '../mappers/phonecall';
 
 export async function handleCompleteTask(
-  payload: { task: { sid: string; attributes: Record<string, any> } },
+  payload: { task: { sid: string; attributes: Record<string, any>; taskChannelUniqueName?: string } },
   deps: {
     client: Pick<CifClient, 'logCall'>;
     cfg: IntegrationConfig;
@@ -11,6 +11,7 @@ export async function handleCompleteTask(
     clear: (sid: string) => void;
   },
 ): Promise<void> {
+  if (payload.task.taskChannelUniqueName !== deps.cfg.voiceChannelName) return;
   const a = payload.task.attributes ?? {};
   const direction = a[deps.cfg.attr.direction] === 'outbound' ? 'outbound' : 'inbound';
   const ctx: CallContext = {

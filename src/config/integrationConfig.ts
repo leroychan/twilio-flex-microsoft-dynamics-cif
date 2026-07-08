@@ -3,6 +3,7 @@ export interface IntegrationConfig {
   dispositionFieldName: string;
   dispositionMap: Record<string, number>;
   attr: { callerNumber: string; disposition: string; notes: string; direction: string };
+  voiceChannelName: string;
 }
 
 const DEFAULTS: IntegrationConfig = {
@@ -15,8 +16,14 @@ const DEFAULTS: IntegrationConfig = {
     notes: 'wrapUpNotes',
     direction: 'direction',
   },
+  voiceChannelName: 'voice',
 };
 
 export function getConfig(overrides: Partial<IntegrationConfig> = {}): IntegrationConfig {
-  return { ...DEFAULTS, ...overrides };
+  return {
+    ...DEFAULTS,
+    ...overrides,
+    attr: { ...DEFAULTS.attr, ...(overrides.attr ?? {}) },
+    dispositionMap: { ...DEFAULTS.dispositionMap, ...(overrides.dispositionMap ?? {}) },
+  };
 }

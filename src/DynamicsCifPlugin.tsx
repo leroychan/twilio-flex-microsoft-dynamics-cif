@@ -2,6 +2,7 @@ import * as Flex from '@twilio/flex-ui';
 import { FlexPlugin } from '@twilio/flex-plugin';
 
 import { getConfig } from './config/integrationConfig';
+import type { IntegrationConfig } from './config/integrationConfig';
 import { CifClient } from './cif/CifClient';
 import { loadCifLibrary } from './cif/loadCifLibrary';
 import { handleAcceptTask } from './listeners/screenPop';
@@ -16,8 +17,13 @@ export default class DynamicsCifPlugin extends FlexPlugin {
     super(PLUGIN_NAME);
   }
 
-  async init(flex: typeof Flex, _manager: Flex.Manager): Promise<void> {
-    const cfg = getConfig();
+  async init(flex: typeof Flex, manager: Flex.Manager): Promise<void> {
+    // Admins can set ui_attributes.dynamicsCif in the Flex Configuration service to tune the
+    // integration without code changes, e.g.:
+    //   { dispositionMap: { resolved: 100000001 }, attr: { disposition: 'wrapUpCode' } }
+    const overrides =
+      ((manager.serviceConfiguration as any)?.ui_attributes?.dynamicsCif ?? {}) as Partial<IntegrationConfig>;
+    const cfg = getConfig(overrides);
     const ready = await loadCifLibrary();
     const client = new CifClient(cfg);
 
