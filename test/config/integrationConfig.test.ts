@@ -1,16 +1,17 @@
-import { getConfig } from '../../src/config/integrationConfig';
+import { getConfig, resolveChannelKey } from '../../src/config/integrationConfig';
 
 describe('getConfig', () => {
   it('returns sane defaults', () => {
     const c = getConfig();
     expect(c.contactSearchFields).toContain('telephone1');
-    expect(c.dispositionFieldName).toBe('new_disposition');
     expect(c.attr.callerNumber).toBeTruthy();
+    expect(c.channels.voice.transcriptSource).toBe('sync-rtt');
+    expect(c.channels.whatsapp.transcriptSource).toBe('conversation');
   });
   it('applies overrides shallowly per key', () => {
     const c = getConfig({ contactSearchFields: ['mobilephone'] });
     expect(c.contactSearchFields).toEqual(['mobilephone']);
-    expect(c.dispositionFieldName).toBe('new_disposition');
+    expect(c.channels.voice.identifierAttr).toBe('caller');
   });
   it('deep-merges partial attr override and keeps other attr fields at defaults', () => {
     const c = getConfig({ attr: { callerNumber: 'x' } } as any);
@@ -19,9 +20,37 @@ describe('getConfig', () => {
     expect(c.attr.notes).toBe('wrapUpNotes');
     expect(c.attr.direction).toBe('direction');
   });
-  it('deep-merges partial dispositionMap override and keeps dispositionFieldName unchanged', () => {
-    const c = getConfig({ dispositionMap: { resolved: 1 } });
-    expect(c.dispositionMap).toEqual({ resolved: 1 });
-    expect(c.dispositionFieldName).toBe('new_disposition');
+  it('deep-merges partial dispositionMap override', () => {
+    const c = getConfig({ dispositionMap: { resolved: 'Resolved' } });
+    expect(c.dispositionMap).toEqual({ resolved: 'Resolved' });
+  });
+  it('replaces the channels map when overridden', () => {
+    const c = getConfig({ channels: { voice: { identifierAttr: 'from', transcriptSource: 'none' } } });
+    expect(Object.keys(c.channels)).toEqual(['voice']);
+    expect(c.channels.voice.transcriptSource).toBe('none');
+  });
+  it('returns fresh channels object (no shared reference across calls)', () => {
+    const a = getConfig();
+    a.channels.voice.identifierAttr = 'mutated';
+    const b = getConfig();
+    expect(b.channels.voice.identifierAttr).toBe('caller');
+  });
+  it('resolves the whatsapp customer identifier from customerAddress', () => {
+    expect(getConfig().channels.whatsapp.identifierAttr).toBe('customerAddress');
+  });
+});
+
+describe('resolveChannelKey', () => {
+  const cfg = getConfig();
+  it('matches directly on taskChannelUniqueName', () => {
+    expect(resolveChannelKey(cfg, 'voice', {})).toBe('voice');
+  });
+  it('falls back to attributes.channelType when the task channel name is not a configured key', () => {
+    expect(resolveChannelKey(cfg, 'chat', { channelType: 'whatsapp' })).toBe('whatsapp');
+    expect(resolveChannelKey(cfg, 'default', { channelType: 'whatsapp' })).toBe('whatsapp');
+  });
+  it('returns undefined for an unhandled channel', () => {
+    expect(resolveChannelKey(cfg, 'sms', { channelType: 'sms' })).toBeUndefined();
+    expect(resolveChannelKey(cfg, undefined, undefined)).toBeUndefined();
   });
 });
