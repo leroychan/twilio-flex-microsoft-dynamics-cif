@@ -48,9 +48,13 @@ const CreateCaseButtonImpl: React.FC<Props> = ({ client, task }) => {
     if (contact?.id) void client.openCaseForm(contact.id, contact.name);
   }, [client, contact]);
 
+  // Localized label (merged into manager.strings at init); fall back to English.
+  const strings = Flex.Manager.getInstance().strings as unknown as Record<string, string>;
+  const label = strings.DynCifCreateCase ?? 'Create Case';
+
   return (
     <Button variant="secondary" size="small" disabled={!contact?.id} onClick={onClick}>
-      Create Case
+      {label}
     </Button>
   );
 };

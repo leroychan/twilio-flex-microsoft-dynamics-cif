@@ -12,6 +12,7 @@ import { wireClickToDial } from './actions/clickToDial';
 import { setContactForTask, getContactForTask, clearTask } from './state/callContext';
 import { CreateCaseButton } from './components/CreateCaseButton';
 import { fetchVoiceTranscript, fetchChatTranscript } from './runtime/transcriptSources';
+import { mergeDynCifStrings } from './localization/mergeStrings';
 
 const PLUGIN_NAME = 'DynamicsCifPlugin';
 
@@ -26,6 +27,9 @@ export default class DynamicsCifPlugin extends FlexPlugin {
     // independent of CIF availability).
     (flex.AgentDesktopView.defaultProps as any).showPanel2 = false;
     flex.RootContainer.Content.remove('project-switcher');
+
+    // Merge our localized UI labels for the active locale (gated by availableLocales).
+    mergeDynCifStrings(manager);
 
     // Admins can set ui_attributes.dynamicsCif in the Flex Configuration service to tune the
     // integration without code changes, e.g.:
