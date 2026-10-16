@@ -5,10 +5,24 @@ function defaultGetCrmUrl(): string | undefined {
   return undefined;
 }
 
-function defaultInject(src: string): Promise<void> {
+/**
+ * The widget is cross-origin to Dynamics, so tell the library which CRM to talk to via
+ * data-crmurl + data-cifid="CIFMainLibrary". Without them the library loads (the global
+ * and all methods exist) but, in Copilot Service workspace (CIF 9.2.26083), the host never
+ * answered: every CIF call stayed pending until CIF's timeout and rejected with a Map.
+ * https://learn.microsoft.com/en-us/dynamics365/channel-integration-framework/v2/administer/pass-url-widget-library
+ */
+export function buildCifScript(src: string, crmUrl: string): HTMLScriptElement {
+  const s = document.createElement('script');
+  s.src = src;
+  s.setAttribute('data-crmurl', crmUrl);
+  s.setAttribute('data-cifid', 'CIFMainLibrary');
+  return s;
+}
+
+function defaultInject(src: string, crmUrl: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = src;
+    const s = buildCifScript(src, crmUrl);
     s.onload = () => resolve();
     s.onerror = () => reject(new Error('failed to load ' + src));
     document.head.appendChild(s);
@@ -17,7 +31,7 @@ function defaultInject(src: string): Promise<void> {
 
 export async function loadCifLibrary(deps: {
   getCrmUrl?: () => string | undefined;
-  injectScript?: (src: string) => Promise<void>;
+  injectScript?: (src: string, crmUrl: string) => Promise<void>;
   isReady?: () => boolean;
   timeoutMs?: number;
 } = {}): Promise<boolean> {
@@ -35,7 +49,7 @@ export async function loadCifLibrary(deps: {
   if (!crmUrl) return false;
 
   try {
-    await injectScript(`${crmUrl}/webresources/Widget/msdyn_ciLibrary.js`);
+    await injectScript(`${crmUrl}/webresources/Widget/msdyn_ciLibrary.js`, crmUrl);
   } catch {
     return false;
   }
