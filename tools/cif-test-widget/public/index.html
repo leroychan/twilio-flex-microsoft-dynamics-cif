@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CIF Test Widget</title>
+  <style>
+    body { font: 13px/1.4 system-ui, sans-serif; margin: 8px; }
+    button { margin: 2px 0; width: 100%; padding: 6px; }
+    input { width: 100%; box-sizing: border-box; padding: 4px; margin: 2px 0; }
+    pre { background: #111; color: #0f0; padding: 6px; white-space: pre-wrap; word-break: break-all; font-size: 11px; }
+    .row { margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+  <h3>CIF Test Widget</h3>
+  <div class="row">
+    CRM URL: <input id="crm" placeholder="https://yourorg.crm.dynamics.com">
+    <label><input type="checkbox" id="attrs" style="width:auto"> add data-crmurl / data-cifid</label>
+    <button onclick="loadLib()">1. Load CIF library</button>
+  </div>
+  <div class="row">
+    <button onclick="call('getEnvironment')">2. getEnvironment()</button>
+    <button onclick="call('getMode')">getMode()</button>
+    <button onclick="call('setMode', 1)">setMode(1) (docked)</button>
+  </div>
+  <div class="row">
+    Phone: <input id="phone" value="+14242316524">
+    <button onclick="search()">3. searchAndOpenRecords(contact, searchOnly=true)</button>
+    <button onclick="screenPop()">4. Screen pop (same flow as the plugin)</button>
+    <button onclick="openContactForm()">5. openForm(contact) for last match</button>
+  </div>
+  <label><input type="checkbox" id="rawmsg" style="width:auto"> log all postMessage traffic</label>
+  <button onclick="document.getElementById('out').textContent=''">Clear log</button>
+  <pre id="out"></pre>
+
+  <script>
+    const out = document.getElementById('out');
+    function log(msg) {
+      const line = new Date().toISOString().slice(11, 23) + ' ' + msg;
+      out.textContent += line + '\n';
+      console.log('[CifTest] ' + line);
+    }
+    // CIF rejects with a Map, which logs as an opaque "#<Map>" — unpack it.
+    function fmt(v) {
+      if (v instanceof Map) return 'Map ' + JSON.stringify(Object.fromEntries(v));
+      if (v instanceof Error) return v.name + ': ' + v.message;
+      try { return typeof v === 'string' ? v : JSON.stringify(v); } catch { return String(v); }
+    }
+
+    // --- Environment facts that decide whether the host will talk to us ---
+    log('location.href = ' + location.href);
+    log('location.origin = ' + location.origin);
+    log('ancestorOrigins = ' + JSON.stringify([...(location.ancestorOrigins || [])]));
+    log('document.referrer = ' + (document.referrer || '(empty)'));
+    log('framed = ' + (window.parent !== window));
+
+    const params = new URLSearchParams(location.search);
+    const guess = params.get('crm')
+      || (location.ancestorOrigins && location.ancestorOrigins[0])
+      || (document.referrer ? new URL(document.referrer).origin : '');
+    document.getElementById('crm').value = guess;
+
+    window.addEventListener('CIFInitDone', () => log('EVENT CIFInitDone fired'));
+    // Host replies to the library's own background calls arrive as a steady stream of
+    // empty successful CIF_Responses. Only count those; log everything else (failures,
+    // events, non-empty data), or all traffic when the checkbox is ticked.
+    let quietResponses = 0;
+    function isRoutine(d) {
+      return d && d.messageType === 'CIF_Response' && d.messageOutcome === 'success'
+        && (!d.messageData || Object.keys(d.messageData).length === 0);
+    }
+    window.addEventListener('message', (e) => {
+      if (!document.getElementById('rawmsg').checked && isRoutine(e.data)) {
+        quietResponses++;
+        return;
+      }
+      log('MSG from ' + e.origin + ': ' + fmt(e.data).slice(0, 300));
+    });
+    setInterval(() => {
+      if (quietResponses) {
+        log('(' + quietResponses + ' routine empty CIF_Response messages from host in last 30s)');
+        quietResponses = 0;
+      }
+    }, 30000);
+
+    function loadLib() {
+      const crm = document.getElementById('crm').value.trim().replace(/\/$/, '');
+      if (!crm) { log('ERROR: enter the CRM URL'); return; }
+      const s = document.createElement('script');
+      s.src = crm + '/webresources/Widget/msdyn_ciLibrary.js';
+      if (document.getElementById('attrs').checked) {
+        s.setAttribute('data-crmurl', crm);
+        s.setAttribute('data-cifid', 'CIFMainLibrary');
+      }
+      s.onload = () => {
+        const g = window.Microsoft && window.Microsoft.CIFramework;
+        log('library loaded; CIFramework present = ' + !!g);
+      };
+      s.onerror = () => log('ERROR: failed to load ' + s.src);
+      log('loading ' + s.src + ' (attrs=' + document.getElementById('attrs').checked + ')');
+      document.head.appendChild(s);
+    }
+
+    function run(label, promiseFn) {
+      const g = window.Microsoft && window.Microsoft.CIFramework;
+      if (!g) { log('ERROR: load the library first'); return; }
+      const t0 = Date.now();
+      log('-> ' + label);
+      const timer = setInterval(() => log('   ' + label + ' still pending after ' + Math.round((Date.now() - t0) / 1000) + 's'), 10000);
+      Promise.resolve()
+        .then(promiseFn)
+        .then(
+          (r) => log('<- ' + label + ' OK in ' + (Date.now() - t0) + 'ms: ' + fmt(r)),
+          (e) => log('<- ' + label + ' ERR in ' + (Date.now() - t0) + 'ms: ' + fmt(e)),
+        )
+        .finally(() => clearInterval(timer));
+    }
+
+    function call(name, ...args) {
+      run(name + '(' + args.join(',') + ')', () => window.Microsoft.CIFramework[name](...args));
+    }
+
+    function contactQuery() {
+      const v = encodeURIComponent(document.getElementById('phone').value.trim().replace(/'/g, "''"));
+      return `?$select=contactid,fullname&$filter=telephone1 eq '${v}' or mobilephone eq '${v}' or telephone2 eq '${v}'`;
+    }
+
+    // Same normalization as src/mappers/contactSearch.ts parseContactResults.
+    function parseMatches(raw) {
+      let parsed;
+      try { parsed = JSON.parse(raw); } catch { return []; }
+      const rows = Array.isArray(parsed)
+        ? parsed
+        : Object.keys(parsed || {}).filter((k) => /^\d+$/.test(k)).map((k) => parsed[k]);
+      return rows.filter((r) => r && r.contactid).map((r) => ({ id: r.contactid, fullname: r.fullname }));
+    }
+
+    let lastMatch;
+
+    function search() {
+      const q = contactQuery();
+      run('searchAndOpenRecords ' + q, () => window.Microsoft.CIFramework.searchAndOpenRecords('contact', q, true));
+    }
+
+    // Mirrors CifClient.screenPop: search with searchOnly=true, then re-run with
+    // searchOnly=false so Dynamics opens the record (1 match) or the results list.
+    function screenPop() {
+      const cif = window.Microsoft && window.Microsoft.CIFramework;
+      const q = contactQuery();
+      run('screenPop search ' + q, async () => {
+        const raw = await cif.searchAndOpenRecords('contact', q, true);
+        const matches = parseMatches(raw);
+        log('   parsed matches: ' + matches.length + ' ' + JSON.stringify(matches));
+        if (matches.length === 1) lastMatch = matches[0];
+        log('   opening with searchOnly=false…');
+        return cif.searchAndOpenRecords('contact', q, false);
+      });
+    }
+
+    // Alternative pop: open the contact's main form directly by id.
+    function openContactForm() {
+      if (!lastMatch) { log('ERROR: run the screen pop first to get a single match'); return; }
+      const opts = JSON.stringify({ entityName: 'contact', entityId: lastMatch.id });
+      run('openForm contact ' + lastMatch.id, () => window.Microsoft.CIFramework.openForm(opts));
+    }
+
+    // Auto-load when the CRM URL is known, so it behaves like a real provider on open.
+    if (guess) loadLib();
+  </script>
+</body>
+</html>

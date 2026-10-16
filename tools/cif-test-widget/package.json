@@ -1,0 +1,11 @@
+{
+  "name": "cif-test-widget",
+  "private": true,
+  "description": "Minimal CIF channel-provider widget for debugging the Dynamics CIF host, independent of Flex.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
